@@ -1,92 +1,244 @@
-# partie-3
+# CREATION DES SECURITY GROUPS
 
+Sur AWS, un [security group](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html) permet de spécifier les flux autorisés à atteindre une ressource et/ou à sortir d’une ressource. Un unique security-group peut être attaché à plusieurs ressources. 
 
+L’infrastructure que vous devez créer nécessite 3 security groups :
 
-## Getting started
+- 1 x security group pour le load-balancer
+    - Permet aux utilisateurs d’accéder à l’application web depuis leur navigateur
+    - Autorise les flux HTTP depuis n’importe quelle source
+    - Autorise tous les flux vers n’importe quelle destination
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- 1 x security group pour le serveur web
+    - Permet au serveur web de recevoir les requêtes des utilisateurs transmises par le LB
+    - Permet de vous connecter au serveur web au travers du protocole SSH
+    - Autorise les flux HTTP depuis le security group du load-balancer
+    - Autorise les flux SSH depuis votre adresse IP
+    - Autorise tous les flux vers n’importe quelle destination
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- 1 x security group pour la base de données MySQL
+    - Permet à la base de données de recevoir les requêtes SQL envoyées par le serveur web
+    - Autorise les flux MySQL (port 3306) depuis le security group du serveur web
+    - Autorise tous les flux vers n’importe quelle destination
 
-## Add your files
+## Déclarer un security group dans terraform
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Dans terraform, un security group se déclare de la manière suivante :
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/thenuumfactory/mainlab/partie-3.git
-git branch -M main
-git push -uf origin main
+resource "aws_security_group" "mon_security_group" {
+ .
+ .
+ .
+}
 ```
 
-## Integrate with your tools
+Les flux entrants autorisés se paramètrent au travers de blocks **ingress{}** (un bloc par flux) déclarés à l’intérieur de la ressource **aws_security_group** :
 
-- [ ] [Set up project integrations](https://gitlab.com/thenuumfactory/mainlab/partie-3/-/settings/integrations)
+```
+#Autorisation des flux HTTP depuis n’importe quelle source
+ingress {
+  from_port = 80
+  to_port = 80
+  protocol = "tcp"
+  cidr_blocks = ["0.0.0.0/0"] #0.0.0.0/0 désigne toutes les IP
+}
 
-## Collaborate with your team
+#Autorisation des flux SSH depuis une adresse IP spécifique
+ingress {
+  from_port = 22
+  to_port = 22
+  protocol = "tcp"
+  cidr_blocks = ["84.205.133.44/32"]
+}
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+#Autorisation des flux HTTP depuis un autre security group
+ingress {
+  from_port = 80
+  to_port = 80
+  protocol = "tcp"
+  security_groups = [aws_security_group.mon_second_sg.id]
+}
+```
 
-## Test and Deploy
+Notez que le paramètre **cidr_blocks** devient **security_groups** lorsque la source du flux est un security group. De plus, ces paramètres attendent des valeurs de type **list**, on peut ainsi spécifier plusieurs adresses IP ou security groups en source d’un flux donné.
 
-Use the built-in continuous integration in GitLab.
+Les flux sortants autorisés se paramètrent au travers de blocks **egress{}** (un bloc par flux) déclarés à l’intérieur de la ressource **aws_security_group** :
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```
+#Autorisation de tous les flux vers n’importe quelle destination
+egress {
+  from_port = 0 #0 signifie tous les ports
+  to_port = 0 #0 signifie tous les ports
+  protocol = "-1" #-1 signifie tous les protocoles
+  cidr_blocks = ["0.0.0.0/0"]
+}
+```
 
-***
+Lorsque l’on crée un security group depuis la console AWS, une règle autorisation tous les flux sortants y est automatiquement ajoutée. Il est rare de supprimer ou modifier cette règle, la philosophie des security group étant de se focaliser sur la restriction des flux entrants.
 
-# Editing this README
+Lorsqu’un security group est créé via terraform, cette règle par défaut n’est pas ajoutée, il faut donc obligatoirement la spécifier comme indiqué dans l’exemple ci-dessus.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Sur la console AWS, la colonne **Name** d’un security group n’a pas de valeur bien que le security group dispose bien d’un nom :
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+<img src="img/sg-list.jpg" />
 
-## Name
-Choose a self-explaining name for your project.
+L’élément affiché dans la colonne Name est en réalité la valeur du tag du même nom. Ainsi, pour que le nom du security group apparaisse dans la colonne Name, il faut ajouter un tag appelé Name sur le security group et lui donner le nom du security group en valeur.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Dans terraform, la création d’un tag s’effectue via le paramètre **tags** :
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```
+resource "aws_security_group" "mon_security_group" {
+  .
+  .
+  .
+  tags = {
+    Name = "mon-super-sg"
+  }
+}
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Finalement, un security group déclaré dans terraform ressemble à cela :
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```
+resource "aws_security_group" "mon_security_group" {
+  name = "mon-super-sg"
+  vpc_id = "vpc-1515g8617c6429b44"
+  
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  tags = {
+    Name = "mon-super-sg"
+  }
+}
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## Déclaration du security group du load-balancer
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+En vous appuyant sur la [documentation officielle de terraform](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group), déclarez le security group du load-balancer dans votre fichier **main.tf** avec les paramètres suivants (remplacez **XX** par le numéro qui vous a été communiqué) :
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+| Paramètre | Valeur                      |
+|-----------|-----------------------------|
+| name      | "nuumfactory-dev-elb-sg-XX" |
+| vpc_id    | "vpc-0f499c2678b9734d6"     |
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Ajoutez ensuite les flux suivants au security group :
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+**Flux entrant**
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+| Paramètre   | Valeur        |
+|-------------|---------------|
+| from_port   | 80            |
+| to_port     | 80            |
+| protocol    | "tcp"         |
+| cidr_blocks | ["0.0.0.0/0"] |
 
-## License
-For open source projects, say how it is licensed.
+**Flux sortant**
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| Paramètre   | Valeur        |
+|-------------|---------------|
+| from_port   | 0             |
+| to_port     | 0             |
+| protocol    | "-1"          |
+| cidr_blocks | ["0.0.0.0/0"] |
+
+Enfin, ajoutez le tag Name avec la valeur "nuumfactory-dev-elb-sg-XX" (remplacez XX par le numéro qui vous a été communiqué).
+
+## Déclaration du security group du serveur web
+
+Déclarez le security group du serveur web dans votre fichier **main.tf** avec les paramètres suivants (remplacez XX par le numéro qui vous a été communiqué) :
+
+| Paramètre | Valeur                      |
+|-----------|-----------------------------|
+| name      | "nuumfactory-dev-ec2-sg-XX" |
+| vpc_id    | "vpc-0f499c2678b9734d6"     |
+
+Ajoutez ensuite les flux suivants au security group :
+
+**Flux entrants**
+
+| Paramètre       | Valeur                        |
+|-----------------|-------------------------------|
+| from_port       | 80                            |
+| to_port         | 80                            |
+| protocol        | "tcp"                         |
+| security_groups | [L'ID du SG du load-balancer] |
+
+| Paramètre       | Valeur                          |
+|-----------------|---------------------------------|
+| from_port       | 22                              |
+| to_port         | 22                              |
+| protocol        | "tcp"                           |
+| security_groups | [Votre adresse IP publique*/32] |
+
+*Pour connaitre votre adresse IP publique, rendez-vous sur https://www.whatismyip.com/fr.
+
+**Flux sortant**
+
+| Paramètre   | Valeur        |
+|-------------|---------------|
+| from_port   | 0             |
+| to_port     | 0             |
+| protocol    | "-1"          |
+| cidr_blocks | ["0.0.0.0/0"] |
+
+Enfin, ajoutez le tag **Name** avec la valeur "nuumfactory-dev-ec2-sg-XX" (remplacez XX par le numéro qui vous a été communiqué).
+
+## Déclaration du security group de la base de données
+
+Déclarez le security group de la base de données dans votre fichier **main.tf** avec les paramètres suivants (remplacez XX par le numéro qui vous a été communiqué) :
+
+| Paramètre | Valeur                     |
+|-----------|----------------------------|
+| name      | "nuumfactory-dev-db-sg-XX" |
+| vpc_id    | "vpc-0f499c2678b9734d6"    |
+
+Ajoutez ensuite les flux suivants au security group :
+
+**Flux entrants**
+
+| Paramètre       | Valeur                      |
+|-----------------|-----------------------------|
+| from_port       | 3306                        |
+| to_port         | 3306                        |
+| protocol        | "tcp"                       |
+| security_groups | [L'ID du SG du serveur web] |
+
+
+**Flux sortant**
+
+| Paramètre   | Valeur        |
+|-------------|---------------|
+| from_port   | 0             |
+| to_port     | 0             |
+| protocol    | "-1"          |
+| cidr_blocks | ["0.0.0.0/0"] |
+
+Enfin, ajoutez le tag Name avec la valeur "nuumfactory-dev-db-sg-XX" (remplacez XX par le numéro qui vous a été communiqué).
+
+## Création des security groups
+
+Depuis votre CLI, placez-vous dans le répertoire nuumfactory-labs/main-lab et exécutez la commande **terraform fmt** : Terraform vous affiche les fichiers dont il a corrigé les indentations.
+
+Exécutez ensuite la commande **terraform plan** et corrigez les éventuelles erreurs obtenues et réexécutez la commande jusqu’à ne plus en obtenir : Terraform vous affiche un plan d’exécution qui décrit les ressources qu’il compte créer, modifier et supprimer.
+
+Si le plan d’exécution correspond à ce que vous souhaitez réaliser (créer vos 3 security groups), alors exécutez la commande **terraform apply -auto-approve** : Terraform procède à la création des 3 security groups que vous avez déclarés.
+
+## Consultation des ressources créées
+
+- Connectez-vous au [compte AWS du lab](https://689995499512.signin.aws.amazon.com/console), tapez « security group » dans la barre de recherche et cliquez sur l’une des deux feature Security Groups qui s’affiche
+- Identifiez les security groups que vous venez de créer, sélectionnez-les un par un et parcourez leur configuration
+
+Vous devriez retrouver l’ensemble des éléments paramétrés dans votre code (nom, tag, règles entrantes, règles sortantes, etc…).
