@@ -181,7 +181,7 @@ Ajoutez ensuite les flux suivants au security group :
 | from_port       | 22                              |
 | to_port         | 22                              |
 | protocol        | "tcp"                           |
-| security_groups | [Votre adresse IP publique*/32] |
+| cidr_blocks     | [Votre adresse IP publique*/32] |
 
 *Pour connaitre votre adresse IP publique, rendez-vous sur https://www.whatismyip.com/fr.
 
