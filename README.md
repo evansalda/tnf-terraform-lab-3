@@ -238,7 +238,7 @@ Si le plan d’exécution correspond à ce que vous souhaitez réaliser (créer 
 
 ## Consultation des ressources créées
 
-- Connectez-vous au [compte AWS du lab](https://689995499512.signin.aws.amazon.com/console), tapez « security group » dans la barre de recherche et cliquez sur l’une des deux feature Security Groups qui s’affiche
+- Connectez-vous au [compte AWS du lab](https://645860290752.signin.aws.amazon.com/console), tapez « security group » dans la barre de recherche et cliquez sur l’une des deux feature Security Groups qui s’affiche
 - Identifiez les security groups que vous venez de créer, sélectionnez-les un par un et parcourez leur configuration
 
 Vous devriez retrouver l’ensemble des éléments paramétrés dans votre code (nom, tag, règles entrantes, règles sortantes, etc…).
