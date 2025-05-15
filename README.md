@@ -132,7 +132,7 @@ En vous appuyant sur la [documentation officielle de terraform](https://registry
 | Paramètre | Valeur                      |
 |-----------|-----------------------------|
 | name      | "nuumfactory-dev-elb-sg-XX" |
-| vpc_id    | "vpc-0f499c2678b9734d6"     |
+| vpc_id    | "vpc-015a6940634130ef5"     |
 
 Ajoutez ensuite les flux suivants au security group :
 
@@ -163,7 +163,7 @@ Déclarez le security group du serveur web dans votre fichier **main.tf** avec l
 | Paramètre | Valeur                      |
 |-----------|-----------------------------|
 | name      | "nuumfactory-dev-ec2-sg-XX" |
-| vpc_id    | "vpc-0f499c2678b9734d6"     |
+| vpc_id    | "vpc-015a6940634130ef5"     |
 
 Ajoutez ensuite les flux suivants au security group :
 
@@ -203,7 +203,7 @@ Déclarez le security group de la base de données dans votre fichier **main.tf*
 | Paramètre | Valeur                     |
 |-----------|----------------------------|
 | name      | "nuumfactory-dev-db-sg-XX" |
-| vpc_id    | "vpc-0f499c2678b9734d6"    |
+| vpc_id    | "vpc-015a6940634130ef5"    |
 
 Ajoutez ensuite les flux suivants au security group :
 
